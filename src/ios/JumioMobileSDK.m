@@ -188,7 +188,7 @@
                 } else if ([key isEqualToString: @"callbackUrl"]) {
                     self.netverifyConfiguration.callbackUrl = [options objectForKey: key];
                 } else if ([key isEqualToString: @"requireFaceMatch"]) {
-                    self.netverifyConfiguration.requireFaceMatch = [self getBoolValue: [options objectForKey: key]];;
+                    self.netverifyConfiguration.requireFaceMatch = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"preselectedCountry"]) {
                     self.netverifyConfiguration.preselectedCountry = [options objectForKey: key];
                 } else if ([key isEqualToString: @"merchantScanReference"]) {
