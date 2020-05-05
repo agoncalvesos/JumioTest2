@@ -21,6 +21,25 @@
             <string>$CAMERA_USAGE_DESCRIPTION</string>
         </config-file>
         
+        
+        
+        <!-- OS CHANGES -->
+        <!-- <podspec>
+            <config>
+                <source url="https://github.com/CocoaPods/Specs.git"/>
+            </config>
+            <pods use-frameworks="true">
+                <pod name="JumioMobileSDK" spec="3.5.0" />
+            </pods>
+        </podspec> -->
+        <!--<framework src="JumioMobileSDK" type="podspec" spec="2.12.0" embed="true" />-->
+        <preference name="deployment-target" value="9.0" /> 
+        <framework src="JumioMobileSDK" type="podspec" spec="3.5.0" embed="true" />
+        <!-- OS CHANGES -->
+        
+        
+        
+        
 		<!--<podspec>
 			<config>
 				<source url="https://github.com/CocoaPods/Specs.git" />
@@ -29,8 +48,6 @@
 				<pod name="JumioMobileSDK" version="2.12.0" configurations="release,debug" />
 			</pods>
 		</podspec>-->
-		<framework src="JumioMobileSDK" type="podspec" spec="2.12.0" embed="true" />
-		
     </platform>
     
     <platform name="android">

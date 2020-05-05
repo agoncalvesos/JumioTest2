@@ -5,12 +5,22 @@
 
 #import "JumioMobileSDK.h"
 
+@interface JumioMobileSDK ()
+
+@property (nonatomic, assign) BOOL initiateSuccessfulBAMCheckout;
+@property (nonatomic, assign) BOOL initiateSuccessfulNetverify;
+@property (nonatomic, assign) BOOL initiateSuccessfulDocumentVerification;
+@property (nonatomic, assign) BOOL initiateSuccessfulAuthentication;
+
+@end
+
 @implementation JumioMobileSDK
     
 #pragma mark - BAM Checkout
     
 - (void)initBAM:(CDVInvokedUrlCommand*)command
     {
+        self.initiateSuccessfulBAMCheckout = NO;
         self.callbackId = command.callbackId;
         
         NSUInteger argc = [command.arguments count];
@@ -22,15 +32,22 @@
         NSString *apiToken = [command.arguments objectAtIndex: 0];
         NSString *apiSecret = [command.arguments objectAtIndex: 1];
         NSString *dataCenterString = [command.arguments objectAtIndex: 2];
+        
+        JumioDataCenter jumioDataCenter = JumioDataCenterUS;
         NSString *dataCenterLowercase = [dataCenterString lowercaseString];
-        JumioDataCenter dataCenter = ([dataCenterLowercase isEqualToString: @"us"]) ? JumioDataCenterUS : JumioDataCenterEU;
+        
+        if ([dataCenterLowercase isEqualToString: @"eu"]) {
+          jumioDataCenter = JumioDataCenterEU;
+        } else if ([dataCenterLowercase isEqualToString: @"sg"]) {
+          jumioDataCenter = JumioDataCenterSG;
+        }
         
         // Initialization
         self.bamConfiguration = [BAMCheckoutConfiguration new];
         self.bamConfiguration.delegate = self;
-        self.bamConfiguration.merchantApiToken = apiToken;
-        self.bamConfiguration.merchantApiSecret = apiSecret;
-        self.bamConfiguration.dataCenter = dataCenter;
+        self.bamConfiguration.apiToken = apiToken;
+        self.bamConfiguration.apiSecret = apiSecret;
+        self.bamConfiguration.dataCenter = jumioDataCenter;
         
         // Configuration
         NSDictionary *options = [command.arguments objectAtIndex: 3];
@@ -48,8 +65,8 @@
                     self.bamConfiguration.expiryEditable = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"cardHolderNameEditable"]) {
                     self.bamConfiguration.cardHolderNameEditable = [self getBoolValue: [options objectForKey: key]];
-                } else if ([key isEqualToString: @"merchantReportingCriteria"]) {
-                    self.bamConfiguration.merchantReportingCriteria = [options objectForKey: key];
+                } else if ([key isEqualToString: @"reportingCriteria"]) {
+                    self.bamConfiguration.reportingCriteria = [options objectForKey: key];
                 } else if ([key isEqualToString: @"vibrationEffectEnabled"]) {
                     self.bamConfiguration.vibrationEffectEnabled = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"enableFlashOnScanStart"]) {
@@ -84,8 +101,6 @@
                             cardTypes = cardTypes | BAMCheckoutCreditCardTypeDiscover;
                         } else if ([[type lowercaseString] isEqualToString: @"jcb"]) {
                             cardTypes = cardTypes | BAMCheckoutCreditCardTypeJCB;
-                        } else if ([[type lowercaseString] isEqualToString: @"starbucks"]) {
-                            cardTypes = cardTypes | BAMCheckoutCreditCardTypeStarbucks;
                         }
                     }
                     
@@ -99,36 +114,37 @@
         if (![customization isEqual:[NSNull null]]) {
             for (NSString *key in customization) {
                 if ([key isEqualToString: @"disableBlur"]) {
-                    [[BAMCheckoutBaseView bamCheckoutAppearance] setDisableBlur: @YES];
+                    BOOL disableBlur = [self getBoolValue:[customization objectForKey: key]];
+                    [[BAMCheckoutBaseView jumioAppearance] setDisableBlur: disableBlur ? @YES : @NO];
                 } else {
                     UIColor *color = [self colorWithHexString: [customization objectForKey: key]];
                     
                     if ([key isEqualToString: @"backgroundColor"]) {
-                        [[BAMCheckoutBaseView bamCheckoutAppearance] setBackgroundColor: color];
+                        [[BAMCheckoutBaseView jumioAppearance] setBackgroundColor: color];
                     } else if ([key isEqualToString: @"tintColor"]) {
-                        [[UINavigationBar bamCheckoutAppearance] setTintColor: color];
+                        [[UINavigationBar jumioAppearance] setTintColor: color];
                     } else if ([key isEqualToString: @"barTintColor"]) {
-                        [[UINavigationBar bamCheckoutAppearance] setBarTintColor: color];
+                        [[UINavigationBar jumioAppearance] setBarTintColor: color];
                     } else if ([key isEqualToString: @"textTitleColor"]) {
-                        [[UINavigationBar bamCheckoutAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
+                        [[UINavigationBar jumioAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
                     } else if ([key isEqualToString: @"foregroundColor"]) {
-                        [[BAMCheckoutBaseView bamCheckoutAppearance] setForegroundColor: color];
+                        [[BAMCheckoutBaseView jumioAppearance] setForegroundColor: color];
                     } else if ([key isEqualToString: @"positiveButtonBackgroundColor"]) {
-                        [[BAMCheckoutPositiveButton bamCheckoutAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[BAMCheckoutPositiveButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"positiveButtonBorderColor"]) {
-                        [[BAMCheckoutPositiveButton bamCheckoutAppearance] setBorderColor: color];
+                        [[BAMCheckoutPositiveButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"positiveButtonTitleColor"]) {
-                        [[BAMCheckoutPositiveButton bamCheckoutAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[BAMCheckoutPositiveButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBackgroundColor"]) {
-                        [[BAMCheckoutNegativeButton bamCheckoutAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[BAMCheckoutNegativeButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBorderColor"]) {
-                        [[BAMCheckoutNegativeButton bamCheckoutAppearance] setBorderColor: color];
+                        [[BAMCheckoutNegativeButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"negativeButtonTitleColor"]) {
-                        [[BAMCheckoutNegativeButton bamCheckoutAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[BAMCheckoutNegativeButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     }  else if ([key isEqualToString: @"scanOverlayTextColor"]) {
-                        [[BAMCheckoutScanOverlay bamCheckoutAppearance] setTextColor: color];
+                        [[BAMCheckoutScanOverlay jumioAppearance] setTextColor: color];
                     }  else if ([key isEqualToString: @"scanOverlayBorderColor"]) {
-                        [[BAMCheckoutScanOverlay bamCheckoutAppearance] setBorderColor: color];
+                        [[BAMCheckoutScanOverlay jumioAppearance] setBorderColor: color];
                     }
                 }
             }
@@ -136,6 +152,7 @@
 
         @try {
             self.bamViewController = [[BAMCheckoutViewController alloc] initWithConfiguration: self.bamConfiguration];
+            self.initiateSuccessfulBAMCheckout = YES;
         } @catch (NSException *exception) {
             NSString *msg = [NSString stringWithFormat: @"Cancelled with exception %@: %@", exception.name, exception.reason];
             [self sendErrorMessage: msg];
@@ -146,7 +163,7 @@
     {
         self.callbackId = command.callbackId;
         
-        if (self.bamViewController == nil) {
+        if (self.bamViewController == nil && self.initiateSuccessfulBAMCheckout == NO) {
             [self sendErrorMessage: @"The BAM SDK is not initialized yet. Call initBAM() first."];
             return;
         }
@@ -156,9 +173,9 @@
     
 #pragma mark - Netverify
     
-- (void)initNetverify:(CDVInvokedUrlCommand*)command
-    {
+- (void)initNetverify:(CDVInvokedUrlCommand*)command {
         self.callbackId = command.callbackId;
+        self.initiateSuccessfulNetverify = NO;
         
         NSUInteger argc = [command.arguments count];
         if (argc < 3) {
@@ -169,38 +186,56 @@
         NSString *apiToken = [command.arguments objectAtIndex: 0];
         NSString *apiSecret = [command.arguments objectAtIndex: 1];
         NSString *dataCenterString = [command.arguments objectAtIndex: 2];
+
+        JumioDataCenter jumioDataCenter = JumioDataCenterUS;
         NSString *dataCenterLowercase = [dataCenterString lowercaseString];
-        JumioDataCenter dataCenter = ([dataCenterLowercase isEqualToString: @"us"]) ? JumioDataCenterUS : JumioDataCenterEU;
+        
+        if ([dataCenterLowercase isEqualToString: @"eu"]) {
+          jumioDataCenter = JumioDataCenterEU;
+        } else if ([dataCenterLowercase isEqualToString: @"sg"]) {
+          jumioDataCenter = JumioDataCenterSG;
+        }
         
         // Initialization
         self.netverifyConfiguration = [NetverifyConfiguration new];
         self.netverifyConfiguration.delegate = self;
-        self.netverifyConfiguration.merchantApiToken = apiToken;
-        self.netverifyConfiguration.merchantApiSecret = apiSecret;
-        self.netverifyConfiguration.dataCenter = dataCenter;
+        self.netverifyConfiguration.apiToken = apiToken;
+        self.netverifyConfiguration.apiSecret = apiSecret;
+        self.netverifyConfiguration.dataCenter = jumioDataCenter;
         
         // Configuration
         NSDictionary *options = [command.arguments objectAtIndex: 3];
         if (![options isEqual:[NSNull null]]) {
             for (NSString *key in options) {
-                if ([key isEqualToString: @"requireVerification"]) {
-                    self.netverifyConfiguration.requireVerification = [options objectForKey: key];
+                if ([key isEqualToString: @"enableVerification"]) {
+                    self.netverifyConfiguration.enableVerification = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"callbackUrl"]) {
                     self.netverifyConfiguration.callbackUrl = [options objectForKey: key];
-                } else if ([key isEqualToString: @"requireFaceMatch"]) {
-                    self.netverifyConfiguration.requireFaceMatch = [self getBoolValue: [options objectForKey: key]];
+                } else if ([key isEqualToString: @"enableIdentityVerification"]) {
+                    self.netverifyConfiguration.enableIdentityVerification = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"preselectedCountry"]) {
                     self.netverifyConfiguration.preselectedCountry = [options objectForKey: key];
-                } else if ([key isEqualToString: @"merchantScanReference"]) {
-                    self.netverifyConfiguration.merchantScanReference = [options objectForKey: key];
-                } else if ([key isEqualToString: @"merchantReportingCriteria"]) {
-                    self.netverifyConfiguration.merchantReportingCriteria = [options objectForKey: key];
-                } else if ([key isEqualToString: @"customerId"]) {
-                    self.netverifyConfiguration.customerId = [options objectForKey: key];
+                } else if ([key isEqualToString: @"customerInternalReference"]) {
+                    self.netverifyConfiguration.customerInternalReference = [options objectForKey: key];
+                } else if ([key isEqualToString: @"enableWatchlistScreening"]) {
+                    NSString* watchlistScreeningValue = [[options objectForKey: key] lowercaseString];
+                    if ([watchlistScreeningValue isEqualToString:@"enabled"]) {
+                        self.netverifyConfiguration.watchlistScreening = NetverifyWatchlistScreeningEnabled;
+                    } else if ([watchlistScreeningValue isEqualToString:@"disabled"]) {
+                        self.netverifyConfiguration.watchlistScreening = NetverifyWatchlistScreeningDisabled;
+                    } else {
+                        self.netverifyConfiguration.watchlistScreening = NetverifyWatchlistScreeningDefault;
+                    }
+                } else if ([key isEqualToString: @"watchlistSearchProfile"]) {
+                    self.netverifyConfiguration.watchlistSearchProfile = [options objectForKey: key];
+                } else if ([key isEqualToString: @"reportingCriteria"]) {
+                    self.netverifyConfiguration.reportingCriteria = [options objectForKey: key];
+                } else if ([key isEqualToString: @"userReference"]) {
+                    self.netverifyConfiguration.userReference = [options objectForKey: key];
                 } else if ([key isEqualToString: @"sendDebugInfoToJumio"]) {
-                    self.netverifyConfiguration.sendDebugInfoToJumio = [options objectForKey: key];
+                    self.netverifyConfiguration.sendDebugInfoToJumio = [self getBoolValue: [options objectForKey: key]];
                 } else if ([key isEqualToString: @"dataExtractionOnMobileOnly"]) {
-                    self.netverifyConfiguration.dataExtractionOnMobileOnly = [options objectForKey: key];
+                    self.netverifyConfiguration.dataExtractionOnMobileOnly = [self getBoolValue:[options objectForKey: key]];
                 } else if ([key isEqualToString: @"cameraPosition"]) {
                     NSString *cameraString = [[options objectForKey: key] lowercaseString];
                     JumioCameraPosition cameraPosition = ([cameraString isEqualToString: @"front"]) ? JumioCameraPositionFront : JumioCameraPositionBack;
@@ -240,56 +275,71 @@
         if (![customization isEqual:[NSNull null]]) {
             for (NSString *key in customization) {
                 if ([key isEqualToString: @"disableBlur"]) {
-                    [[NetverifyBaseView netverifyAppearance] setDisableBlur: @YES];
+                    BOOL disableBlur = [self getBoolValue:[customization objectForKey: key]];
+                    [[NetverifyBaseView jumioAppearance] setDisableBlur: disableBlur ? @YES : @NO];
+
+                } else if ([key isEqualToString: @"enableDarkMode"]) {
+                    BOOL enableDarkMode = [self getBoolValue:[customization objectForKey: key]];
+                    [[NetverifyBaseView jumioAppearance] setEnableDarkMode: enableDarkMode ? @YES : @NO];
                 } else {
                     UIColor *color = [self colorWithHexString: [customization objectForKey: key]];
                     
                     if ([key isEqualToString: @"backgroundColor"]) {
-                        [[NetverifyBaseView netverifyAppearance] setBackgroundColor: color];
+                        [[NetverifyBaseView jumioAppearance] setBackgroundColor: color];
                     } else if ([key isEqualToString: @"tintColor"]) {
-                        [[UINavigationBar netverifyAppearance] setTintColor: color];
+                        [[UINavigationBar jumioAppearance] setTintColor: color];
                     } else if ([key isEqualToString: @"barTintColor"]) {
-                        [[UINavigationBar netverifyAppearance] setBarTintColor: color];
+                        [[UINavigationBar jumioAppearance] setBarTintColor: color];
                     } else if ([key isEqualToString: @"textTitleColor"]) {
-                        [[UINavigationBar netverifyAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
+                        [[UINavigationBar jumioAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
                     } else if ([key isEqualToString: @"foregroundColor"]) {
-                        [[NetverifyBaseView netverifyAppearance] setForegroundColor: color];
+                        [[NetverifyBaseView jumioAppearance] setForegroundColor: color];
                     } else if ([key isEqualToString: @"documentSelectionHeaderBackgroundColor"]) {
-                        [[NetverifyDocumentSelectionHeaderView netverifyAppearance] setBackgroundColor: color];
+                        [[NetverifyDocumentSelectionHeaderView jumioAppearance] setBackgroundColor: color];
                     } else if ([key isEqualToString: @"documentSelectionHeaderTitleColor"]) {
-                        [[NetverifyDocumentSelectionHeaderView netverifyAppearance] setTitleColor: color];
+                        [[NetverifyDocumentSelectionHeaderView jumioAppearance] setTitleColor: color];
                     } else if ([key isEqualToString: @"documentSelectionHeaderIconColor"]) {
-                        [[NetverifyDocumentSelectionHeaderView netverifyAppearance] setIconColor: color];
+                        [[NetverifyDocumentSelectionHeaderView jumioAppearance] setIconColor: color];
                     } else if ([key isEqualToString: @"documentSelectionButtonBackgroundColor"]) {
-                        [[NetverifyDocumentSelectionButton netverifyAppearance] setBackgroundColor: color forState: UIControlStateNormal];
+                        [[NetverifyDocumentSelectionButton jumioAppearance] setBackgroundColor: color forState: UIControlStateNormal];
                     } else if ([key isEqualToString: @"documentSelectionButtonTitleColor"]) {
-                        [[NetverifyDocumentSelectionButton netverifyAppearance] setTitleColor: color forState: UIControlStateNormal];
+                        [[NetverifyDocumentSelectionButton jumioAppearance] setTitleColor: color forState: UIControlStateNormal];
                     } else if ([key isEqualToString: @"documentSelectionButtonIconColor"]) {
-                        [[NetverifyDocumentSelectionButton netverifyAppearance] setIconColor: color forState: UIControlStateNormal];
+                        [[NetverifyDocumentSelectionButton jumioAppearance] setIconColor: color forState: UIControlStateNormal];
                     } else if ([key isEqualToString: @"fallbackButtonBackgroundColor"]) {
-                        [[NetverifyFallbackButton netverifyAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[NetverifyFallbackButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"fallbackButtonBorderColor"]) {
-                        [[NetverifyFallbackButton netverifyAppearance] setBorderColor: color];
+                        [[NetverifyFallbackButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"fallbackButtonTitleColor"]) {
-                        [[NetverifyFallbackButton netverifyAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[NetverifyFallbackButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"positiveButtonBackgroundColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[NetverifyPositiveButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"positiveButtonBorderColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setBorderColor: color];
+                        [[NetverifyPositiveButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"positiveButtonTitleColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[NetverifyPositiveButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBackgroundColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[NetverifyNegativeButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBorderColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setBorderColor: color];
+                        [[NetverifyNegativeButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"negativeButtonTitleColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[NetverifyNegativeButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"scanOverlayStandardColor"]) {
-                        [[NetverifyScanOverlayView netverifyAppearance] setColorOverlayStandard: color];
+                        [[NetverifyScanOverlayView jumioAppearance] setColorOverlayStandard: color];
                     } else if ([key isEqualToString: @"scanOverlayValidColor"]) {
-                        [[NetverifyScanOverlayView netverifyAppearance] setColorOverlayValid: color];
+                        [[NetverifyScanOverlayView jumioAppearance] setColorOverlayValid: color];
                     } else if ([key isEqualToString: @"scanOverlayInvalidColor"]) {
-                        [[NetverifyScanOverlayView netverifyAppearance] setColorOverlayInvalid: color];
+                        [[NetverifyScanOverlayView jumioAppearance] setColorOverlayInvalid: color];
+                    } else if ([key isEqualToString: @"scanBackgroundColor"]) {
+                        [[NetverifyScanOverlayView jumioAppearance] setScanBackgroundColor: color];
+                    } else if ([key isEqualToString: @"faceOvalColor"]) {
+                        [[NetverifyScanOverlayView jumioAppearance] setFaceOvalColor: color];
+                    } else if ([key isEqualToString: @"faceProgressColor"]) {
+                         [[NetverifyScanOverlayView jumioAppearance] setFaceProgressColor: color];
+                    } else if ([key isEqualToString: @"faceFeedbackBackgroundColor"]) {
+                         [[NetverifyScanOverlayView jumioAppearance] setFaceFeedbackBackgroundColor: color];
+                    } else if ([key isEqualToString: @"faceFeedbackTextColor"]) {
+                         [[NetverifyScanOverlayView jumioAppearance] setFaceFeedbackTextColor: color];
                     }
                 }
             }
@@ -307,19 +357,144 @@
     {
         self.callbackId = command.callbackId;
         
-        if (self.netverifyViewController == nil) {
+        if (self.netverifyViewController == nil && self.initiateSuccessfulNetverify == NO) {
             [self sendErrorMessage: @"The Netverify SDK is not initialized yet. Call initNetverify() first."];
             return;
         }
         
         [self.viewController presentViewController: self.netverifyViewController animated: YES completion: nil];
     }
+
+#pragma mark - Authentication
+
+- (void)initAuthentication:(CDVInvokedUrlCommand*)command {
+    self.initiateSuccessfulAuthentication = NO;
+    self.authenticationController = nil;
+    self.authenticationScanViewController = nil;
+    self.authenticationConfiguration = nil;
+    
+    self.callbackId = command.callbackId;
+        
+    NSUInteger argc = [command.arguments count];
+    if (argc < 3) {
+        [self sendErrorMessage: @"Missing required parameters apiToken, apiSecret or dataCenter."];
+        return;
+    }
+    
+    NSString *apiToken = [command.arguments objectAtIndex: 0];
+    NSString *apiSecret = [command.arguments objectAtIndex: 1];
+    NSString *dataCenterString = [command.arguments objectAtIndex: 2];
+
+    JumioDataCenter jumioDataCenter = JumioDataCenterUS;
+    NSString *dataCenterLowercase = [dataCenterString lowercaseString];
+    
+    if ([dataCenterLowercase isEqualToString: @"eu"]) {
+      jumioDataCenter = JumioDataCenterEU;
+    } else if ([dataCenterLowercase isEqualToString: @"sg"]) {
+      jumioDataCenter = JumioDataCenterSG;
+    }
+    
+    // Initialization
+    self.authenticationConfiguration = [AuthenticationConfiguration new];
+    self.authenticationConfiguration.delegate = self;
+    self.authenticationConfiguration.apiToken = apiToken;
+    self.authenticationConfiguration.apiSecret = apiSecret;
+    self.authenticationConfiguration.dataCenter = jumioDataCenter;
+
+    // Configuration
+    NSString *enrollmentTransactionReference = nil;
+    NSString *authenticationTransactionReference = nil;
+    
+    NSDictionary *configuration = [command.arguments objectAtIndex: 3];
+    if (![configuration isEqual:[NSNull null]]) {
+        for (NSString *key in configuration) {
+            if ([key isEqualToString: @"enrollmentTransactionReference"]) {
+                enrollmentTransactionReference = [configuration objectForKey: key];
+            } else if ([key isEqualToString:@"authenticationTransactionReference"]) {
+                authenticationTransactionReference = [configuration objectForKey:key];
+            } else if ([key isEqualToString: @"callbackUrl"]) {
+                self.authenticationConfiguration.callbackUrl = [configuration objectForKey: key];
+            } else if ([key isEqualToString:@"userReference"]) {
+                self.authenticationConfiguration.userReference = [configuration objectForKey:key];
+            }
+        }
+    }
+    
+    // Customization
+    NSDictionary *customization = [command.arguments objectAtIndex: 4];
+    if (![customization isEqual:[NSNull null]]) {
+        for (NSString *key in customization) {
+            if ([key isEqualToString: @"disableBlur"]) {
+                BOOL disableBlur = [self getBoolValue:[customization objectForKey: key]];
+                [[JumioBaseView jumioAppearance] setDisableBlur: disableBlur ? @YES : @NO];
+            } else if ([key isEqualToString: @"enableDarkMode"]) {
+                BOOL enableDarkMode = [self getBoolValue:[customization objectForKey: key]];
+                [[JumioBaseView jumioAppearance] setEnableDarkMode: enableDarkMode ? @YES : @NO];
+            } else {
+                UIColor *color = [self colorWithHexString: [customization objectForKey: key]];
+                
+                if ([key isEqualToString: @"backgroundColor"]) {
+                    [[JumioBaseView jumioAppearance] setBackgroundColor: color];
+                } else if ([key isEqualToString: @"tintColor"]) {
+                    [[UINavigationBar jumioAppearance] setTintColor: color];
+                } else if ([key isEqualToString: @"barTintColor"]) {
+                    [[UINavigationBar jumioAppearance] setBarTintColor: color];
+                } else if ([key isEqualToString: @"textTitleColor"]) {
+                    [[UINavigationBar jumioAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
+                } else if ([key isEqualToString: @"foregroundColor"]) {
+                    [[JumioBaseView jumioAppearance] setForegroundColor: color];
+                } else if ([key isEqualToString: @"positiveButtonBackgroundColor"]) {
+                    [[JumioPositiveButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                } else if ([key isEqualToString: @"positiveButtonBorderColor"]) {
+                    [[JumioPositiveButton jumioAppearance] setBorderColor: color];
+                } else if ([key isEqualToString: @"positiveButtonTitleColor"]) {
+                    [[JumioPositiveButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
+                } else if ([key isEqualToString: @"faceOvalColor"]) {
+                    [[JumioScanOverlayView jumioAppearance] setFaceOvalColor: color];
+                } else if ([key isEqualToString: @"faceProgressColor"]) {
+                     [[JumioScanOverlayView jumioAppearance] setFaceProgressColor: color];
+                } else if ([key isEqualToString: @"faceFeedbackBackgroundColor"]) {
+                     [[JumioScanOverlayView jumioAppearance] setFaceFeedbackBackgroundColor: color];
+                } else if ([key isEqualToString: @"faceFeedbackTextColor"]) {
+                     [[JumioScanOverlayView jumioAppearance] setFaceFeedbackTextColor: color];
+                }
+            }
+        }
+    }
+
+    if (enrollmentTransactionReference != nil || authenticationTransactionReference != nil){
+        if (authenticationTransactionReference != nil) {
+        self.authenticationConfiguration.authenticationTransactionReference = authenticationTransactionReference;
+        } else {
+        self.authenticationConfiguration.enrollmentTransactionReference = enrollmentTransactionReference;
+        }
+        
+        @try {
+            self.authenticationController = [[AuthenticationController alloc] initWithConfiguration:self.authenticationConfiguration];
+        } @catch (NSException *exception) {
+            NSString *msg = [NSString stringWithFormat: @"Cancelled with exception %@: %@", exception.name, exception.reason];
+            [self sendErrorMessage: msg];
+        }
+    }        
+}
+
+- (void)startAuthentication:(CDVInvokedUrlCommand*)command {
+    self.callbackId = command.callbackId;
+    
+    if (self.authenticationController == nil && self.initiateSuccessfulAuthentication == NO) {
+        [self sendErrorMessage: @"The Authentication SDK has not been initialized yet."];
+        return;
+    }
+    
+    [self.viewController presentViewController: self.authenticationScanViewController animated: YES completion: nil];
+}
     
 #pragma mark - Document Verification
     
 - (void)initDocumentVerification:(CDVInvokedUrlCommand*)command
     {
         self.callbackId = command.callbackId;
+        self.initiateSuccessfulDocumentVerification = NO;
         
         NSUInteger argc = [command.arguments count];
         if (argc < 3) {
@@ -330,15 +505,22 @@
         NSString *apiToken = [command.arguments objectAtIndex: 0];
         NSString *apiSecret = [command.arguments objectAtIndex: 1];
         NSString *dataCenterString = [command.arguments objectAtIndex: 2];
+
+        JumioDataCenter jumioDataCenter = JumioDataCenterUS;
         NSString *dataCenterLowercase = [dataCenterString lowercaseString];
-        JumioDataCenter dataCenter = ([dataCenterLowercase isEqualToString: @"us"]) ? JumioDataCenterUS : JumioDataCenterEU;
+        
+        if ([dataCenterLowercase isEqualToString: @"eu"]) {
+          jumioDataCenter = JumioDataCenterEU;
+        } else if ([dataCenterLowercase isEqualToString: @"sg"]) {
+          jumioDataCenter = JumioDataCenterSG;
+        }
         
         // Initialization
         self.documentVerifcationConfiguration = [DocumentVerificationConfiguration new];
         self.documentVerifcationConfiguration.delegate = self;
-        self.documentVerifcationConfiguration.merchantApiToken = apiToken;
-        self.documentVerifcationConfiguration.merchantApiSecret = apiSecret;
-        self.documentVerifcationConfiguration.dataCenter = dataCenter;
+        self.documentVerifcationConfiguration.apiToken = apiToken;
+        self.documentVerifcationConfiguration.apiSecret = apiSecret;
+        self.documentVerifcationConfiguration.dataCenter = jumioDataCenter;
         
         // Configuration
         NSDictionary *options = [command.arguments objectAtIndex: 3];
@@ -350,18 +532,18 @@
                     self.documentVerifcationConfiguration.customDocumentCode = [options objectForKey: key];
                 } else if ([key isEqualToString: @"country"]) {
                     self.documentVerifcationConfiguration.country = [options objectForKey: key];
-                } else if ([key isEqualToString: @"merchantReportingCriteria"]) {
-                    self.documentVerifcationConfiguration.merchantReportingCriteria = [options objectForKey: key];
+                } else if ([key isEqualToString: @"reportingCriteria"]) {
+                    self.documentVerifcationConfiguration.reportingCriteria = [options objectForKey: key];
                 } else if ([key isEqualToString: @"callbackUrl"]) {
                     self.documentVerifcationConfiguration.callbackUrl = [options objectForKey: key];
-                } else if ([key isEqualToString: @"merchantScanReference"]) {
-                    self.documentVerifcationConfiguration.merchantScanReference = [options objectForKey: key];
-                } else if ([key isEqualToString: @"customerId"]) {
-                    self.documentVerifcationConfiguration.customerId = [options objectForKey: key];
+                } else if ([key isEqualToString: @"customerInternalReference"]) {
+                    self.documentVerifcationConfiguration.customerInternalReference = [options objectForKey: key];
+                } else if ([key isEqualToString: @"userReference"]) {
+                    self.documentVerifcationConfiguration.userReference = [options objectForKey: key];
                 } else if ([key isEqualToString: @"documentName"]) {
                     self.documentVerifcationConfiguration.documentName = [options objectForKey: key];
                 } else if ([key isEqualToString: @"enableExtraction"]) {
-                    self.documentVerifcationConfiguration.enableExtraction = [options objectForKey: key];
+                    self.documentVerifcationConfiguration.enableExtraction = [self getBoolValue:[options objectForKey: key]];
                 } else if ([key isEqualToString: @"cameraPosition"]) {
                     NSString *cameraString = [[options objectForKey: key] lowercaseString];
                     JumioCameraPosition cameraPosition = ([cameraString isEqualToString: @"front"]) ? JumioCameraPositionFront : JumioCameraPositionBack;
@@ -375,32 +557,36 @@
         if (![customization isEqual:[NSNull null]]) {
             for (NSString *key in customization) {
                 if ([key isEqualToString: @"disableBlur"]) {
-                    [[NetverifyBaseView netverifyAppearance] setDisableBlur: @YES];
+                    BOOL disableBlur = [self getBoolValue:[customization objectForKey: key]];
+                    [[DocumentVerificationBaseView jumioAppearance] setDisableBlur: disableBlur ? @YES : @NO];
+                } else if ([key isEqualToString: @"enableDarkMode"]) {
+                    BOOL enableDarkMode = [self getBoolValue:[customization objectForKey: key]];
+                    [[DocumentVerificationBaseView jumioAppearance] setEnableDarkMode: enableDarkMode ? @YES : @NO];
                 } else {
                     UIColor *color = [self colorWithHexString: [customization objectForKey: key]];
                     
                     if ([key isEqualToString: @"backgroundColor"]) {
-                        [[NetverifyBaseView netverifyAppearance] setBackgroundColor: color];
+                        [[DocumentVerificationBaseView jumioAppearance] setBackgroundColor: color];
                     } else if ([key isEqualToString: @"tintColor"]) {
-                        [[UINavigationBar netverifyAppearance] setTintColor: color];
+                        [[UINavigationBar jumioAppearance] setTintColor: color];
                     } else if ([key isEqualToString: @"barTintColor"]) {
-                        [[UINavigationBar netverifyAppearance] setBarTintColor: color];
+                        [[UINavigationBar jumioAppearance] setBarTintColor: color];
                     } else if ([key isEqualToString: @"textTitleColor"]) {
-                        [[UINavigationBar netverifyAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
+                        [[UINavigationBar jumioAppearance] setTitleTextAttributes: @{NSForegroundColorAttributeName: color}];
                     } else if ([key isEqualToString: @"foregroundColor"]) {
-                        [[NetverifyBaseView netverifyAppearance] setForegroundColor: color];
+                        [[DocumentVerificationBaseView jumioAppearance] setForegroundColor: color];
                     } else if ([key isEqualToString: @"positiveButtonBackgroundColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[DocumentVerificationPositiveButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"positiveButtonBorderColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setBorderColor: color];
+                        [[DocumentVerificationPositiveButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"positiveButtonTitleColor"]) {
-                        [[NetverifyPositiveButton netverifyAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[DocumentVerificationPositiveButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBackgroundColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setBackgroundColor: color forState:UIControlStateNormal];
+                        [[DocumentVerificationNegativeButton jumioAppearance] setBackgroundColor: color forState:UIControlStateNormal];
                     } else if ([key isEqualToString: @"negativeButtonBorderColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setBorderColor: color];
+                        [[DocumentVerificationNegativeButton jumioAppearance] setBorderColor: color];
                     } else if ([key isEqualToString: @"negativeButtonTitleColor"]) {
-                        [[NetverifyNegativeButton netverifyAppearance] setTitleColor: color forState:UIControlStateNormal];
+                        [[DocumentVerificationNegativeButton jumioAppearance] setTitleColor: color forState:UIControlStateNormal];
                     }
                 }
             }
@@ -408,6 +594,7 @@
         
         @try {
             self.documentVerificationViewController = [[DocumentVerificationViewController alloc] initWithConfiguration: self.documentVerifcationConfiguration];
+            self.initiateSuccessfulDocumentVerification = YES;
         } @catch (NSException *exception) {
             NSString *msg = [NSString stringWithFormat: @"Cancelled with exception %@: %@", exception.name, exception.reason];
             [self sendErrorMessage: msg];
@@ -418,7 +605,7 @@
     {
         self.callbackId = command.callbackId;
         
-        if (self.documentVerificationViewController == nil) {
+        if (self.documentVerificationViewController == nil && self.initiateSuccessfulDocumentVerification == NO) {
             [self sendErrorMessage: @"The Document-Verification SDK is not initialized yet. Call initDocumentVerification() first."];
             return;
         }
@@ -430,6 +617,7 @@
 #pragma mark - BAM Checkout Delegates
     
 - (void) bamCheckoutViewController:(BAMCheckoutViewController *)controller didFinishScanWithCardInformation:(BAMCheckoutCardInformation *)cardInformation scanReference:(NSString *)scanReference {
+    self.initiateSuccessfulBAMCheckout = NO;
     NSDictionary *result = [[NSMutableDictionary alloc] init];
     
     if (cardInformation.cardType == BAMCheckoutCreditCardTypeVisa) {
@@ -446,8 +634,6 @@
         [result setValue: @"DISCOVER" forKey: @"cardType"];
     } else if (cardInformation.cardType == BAMCheckoutCreditCardTypeJCB) {
         [result setValue: @"JCB" forKey: @"cardType"];
-    } else if (cardInformation.cardType == BAMCheckoutCreditCardTypeStarbucks) {
-        [result setValue: @"STARBUCKS" forKey: @"cardType"];
     }
     
     [result setValue: cardInformation.cardNumber forKey: @"cardNumber"];
@@ -471,6 +657,7 @@
 }
     
 - (void) bamCheckoutViewController:(BAMCheckoutViewController *)controller didCancelWithError:(NSError *)error scanReference:(NSString *)scanReference {
+    self.initiateSuccessfulBAMCheckout = NO;
     [self sendError: error scanReference: scanReference];
     [self.viewController dismissViewControllerAnimated: YES completion: nil];
 }
@@ -478,6 +665,8 @@
 #pragma mark - Netverify Delegates
     
 - (void)netverifyViewController:(NetverifyViewController *)netverifyViewController didFinishWithDocumentData:(NetverifyDocumentData *)documentData scanReference:(NSString *)scanReference {
+    self.initiateSuccessfulNetverify = NO;
+
     NSDictionary *result = [[NSMutableDictionary alloc] init];
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
     [formatter setDateFormat: @"yyyy-MM-dd'T'HH:mm:ss.SSS"];
@@ -499,7 +688,6 @@
     [result setValue: documentData.issuingCountry forKey: @"issuingCountry"];
     [result setValue: documentData.lastName forKey: @"lastName"];
     [result setValue: documentData.firstName forKey: @"firstName"];
-    [result setValue: documentData.middleName forKey: @"middleName"];
     [result setValue: [formatter stringFromDate: documentData.dob] forKey: @"dob"];
     if (documentData.gender == NetverifyGenderM) {
         [result setValue: @"m" forKey: @"gender"];
@@ -561,23 +749,91 @@
     
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK messageAsDictionary: result];
     [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
-    [self.viewController dismissViewControllerAnimated: YES completion: nil];
+    [self.viewController dismissViewControllerAnimated: YES completion: ^{
+        [self.netverifyViewController destroy];
+        self.netverifyViewController = nil;
+    }];
 }
     
 - (void)netverifyViewController:(NetverifyViewController *)netverifyViewController didFinishInitializingWithError:(NetverifyError *)error {
     if (error != nil) {
         [self sendNetverifyError: error scanReference: nil];
+        return;
     }
+
+    self.initiateSuccessfulNetverify = YES;
 }
     
 - (void)netverifyViewController:(NetverifyViewController *)netverifyViewController didCancelWithError:(NetverifyError *)error scanReference:(NSString *)scanReference {
+    self.initiateSuccessfulNetverify = NO;
     [self sendNetverifyError: error scanReference: scanReference];
     [self.viewController dismissViewControllerAnimated: YES completion: nil];
+}
+
+#pragma mark - Authentication Delegates
+
+- (void)authenticationController:(nonnull AuthenticationController *)authenticationController didFinishInitializingScanViewController:(nonnull UIViewController *)scanViewController {
+    self.authenticationScanViewController = scanViewController;
+    self.initiateSuccessfulAuthentication = YES;
+    NSMutableDictionary* result = [[NSMutableDictionary alloc] init];
+    
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK messageAsDictionary: result];
+    [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
+}
+
+- (void)authenticationController:(nonnull AuthenticationController *)authenticationController didFinishWithAuthenticationResult:(AuthenticationResult)authenticationResult transactionReference:(nonnull NSString *)transactionReference {
+    self.initiateSuccessfulAuthentication = NO;
+
+    NSMutableDictionary *result = [[NSMutableDictionary alloc] init];
+    if (authenticationResult == AuthenticationResultSuccess) {
+        [result setValue: @"SUCCESS" forKey: @"authenticationResult"];
+    } else {
+        [result setValue: @"FAILED" forKey: @"authenticationResult"];
+    }
+    
+    [result setValue: transactionReference forKey: @"transactionReference"];
+    
+    [self.authenticationScanViewController dismissViewControllerAnimated: YES completion: ^{
+
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK messageAsDictionary: result];
+        [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
+        
+        [self.authenticationController destroy];
+        self.authenticationController = nil;
+    }];
+}
+
+- (void)authenticationController:(nonnull AuthenticationController *)authenticationController didFinishWithError:(nonnull AuthenticationError *)error transactionReference:(NSString * _Nullable)transactionReference {
+    self.initiateSuccessfulAuthentication = NO;
+    
+    NSMutableDictionary *result = [[NSMutableDictionary alloc] init];
+    [result setValue: error.code forKey: @"errorCode"];
+    [result setValue: error.message forKey: @"errorMessage"];
+    if (transactionReference) {
+        [result setValue: transactionReference forKey: @"transactionReference"];
+    }
+    
+    //Dismiss the SDK
+    void (^errorCompletion)(void) = ^{
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_ERROR messageAsDictionary: result];
+        [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
+        
+        //Destroy the instance to properly clean up the SDK
+        [self.authenticationController destroy];
+        self.authenticationController = nil;
+    };
+    
+    if (self.authenticationScanViewController) {
+        [self.authenticationScanViewController dismissViewControllerAnimated:YES completion:errorCompletion];
+    } else {
+        errorCompletion();
+    }
 }
 
 #pragma mark - Document Verification Delegates
     
 - (void) documentVerificationViewController:(DocumentVerificationViewController *)documentVerificationViewController didFinishWithScanReference:(NSString *)scanReference {
+    self.initiateSuccessfulDocumentVerification = NO;
     NSDictionary *result = [NSDictionary dictionaryWithObject: scanReference forKey: @"scanReference"];
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_ERROR messageAsDictionary: result];
     [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
@@ -585,6 +841,7 @@
 }
     
 - (void) documentVerificationViewController:(DocumentVerificationViewController *)documentVerificationViewController didFinishWithError:(DocumentVerificationError *)error {
+    self.initiateSuccessfulDocumentVerification = NO;
     [self sendDocumentVerificationError: error scanReference: nil];
     [self.viewController dismissViewControllerAnimated: YES completion: nil];
 }
@@ -623,7 +880,12 @@
     
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus: CDVCommandStatus_ERROR messageAsDictionary: result];
     [self.commandDelegate sendPluginResult: pluginResult callbackId: self.callbackId];
-    [self.viewController dismissViewControllerAnimated: YES completion: nil];
+    [self.viewController dismissViewControllerAnimated: YES completion: ^{
+        if (self.netverifyViewController) {
+            [self.netverifyViewController destroy];
+            self.netverifyViewController = nil;
+        }
+    }];
 }
 
 - (void)sendDocumentVerificationError:(DocumentVerificationError *)error scanReference:(NSString *)scanReference {
@@ -653,5 +915,5 @@
     sscanf([str_HEX UTF8String], "#%02X%02X%02X", &red, &green, &blue);
     return  [UIColor colorWithRed:red/255.0 green:green/255.0 blue:blue/255.0 alpha:1];
 }
-    
-    @end
+
+@end
